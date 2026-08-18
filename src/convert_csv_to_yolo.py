@@ -9,24 +9,19 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", force=True)
 logger = logging.getLogger(__name__)
 
-# This file lives at <repo_root>/src/convert_csv_to_yolo.py, so the repo root is one level up.
 SRC_DIR = Path(__file__).resolve().parent
 
-# --- Fill these in before running ---
-# These two point OUTSIDE this repo (your own local dataset download) - not
-# something a relative path can express. Edit them for your machine.
-IMAGE_DIR = "C:\\Users\\Jayakumar\\Downloads\\archive\\positive"          # uncropped source images
-CSV_PATH = "C:\\Users\\Jayakumar\\Downloads\\archive\\labels.csv"         # filename,width,height,xmin,ymin,xmax,ymax,class
-ACCEPTED_CLASS = "Comp"                                                    # which CSV 'class' value to keep
-OUTPUT_LABEL = "phone"                                                     # class name written into data.yaml
+# IMAGE_DIR and CSV_PATH point outside this repo (your own dataset download) - edit for your machine
+IMAGE_DIR = "C:\\Users\\Jayakumar\\Downloads\\archive\\positive"
+CSV_PATH = "C:\\Users\\Jayakumar\\Downloads\\archive\\labels.csv"
+ACCEPTED_CLASS = "Comp"
+OUTPUT_LABEL = "phone"
 OUTPUT_DIR = str(SRC_DIR / "phone_yolo_dataset")
 VALIDATION_FRACTION = 0.15
 RANDOM_SEED = 42
 
 
 def load_annotations(csv_path, accepted_class):
-    """Returns {filename: [(xmin, ymin, xmax, ymax), ...]} - one entry per image,
-    every box on that image, filtered to accepted_class."""
     annotations = defaultdict(list)
     skipped_other_class = 0
 
@@ -48,7 +43,7 @@ def load_annotations(csv_path, accepted_class):
 
 
 def to_yolo_line(class_idx, xmin, ymin, xmax, ymax, img_width, img_height):
-    """YOLO format: class_idx cx cy w h, all normalized to [0, 1]."""
+    # YOLO wants class_idx cx cy w h, all normalized to [0, 1]
     box_w = xmax - xmin
     box_h = ymax - ymin
     cx = xmin + box_w / 2
@@ -114,7 +109,7 @@ def convert(image_dir, csv_path, accepted_class, output_label, output_dir,
     train_filenames = filenames[:split_idx]
     val_filenames = filenames[split_idx:]
 
-    class_idx = 0  # single class - phone is the only thing this model needs to know about
+    class_idx = 0  # single class - just phone
 
     train_written = build_split(
         train_filenames, annotations, image_dims, image_dir,

@@ -3,23 +3,12 @@ from pathlib import Path
 import cv2
 import mediapipe as mp
 
-# This file lives at <repo_root>/src/face_tracker.py, so the repo root is one level up.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FACE_LANDMARKER_MODEL_PATH = PROJECT_ROOT / "model" / "face_landmarker_v2.task"
 
 
 class FaceTracker:
-    """Synchronous (IMAGE mode) face landmark detection - every call to
-    get_face_coordinates() returns landmarks for the exact frame passed in.
-
-    This used to run in LIVE_STREAM mode: detect_async() + a callback writing
-    to self.latest_result, with get_face_coordinates() reading whatever the
-    last callback delivered immediately after submitting a new frame. That's
-    a race - the "latest" result could be from several frames ago, or still
-    None early on, so the pose math would score the current frame against a
-    stale head position. Same class of bug already found and fixed in
-    HandTracker/the dataset converters - switching to IMAGE mode here removes
-    it the same way."""
+    # runs in synchronous IMAGE mode so every call returns landmarks for the exact frame passed in, no stale results
 
     def __init__(self, min_detection_confidence: float, min_tracking_confidence: float):
         self.face_indices = [1,152,33,263,61,291]
@@ -28,7 +17,7 @@ class FaceTracker:
         options = mp.tasks.vision.FaceLandmarkerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=self.model_path),
             running_mode=mp.tasks.vision.RunningMode.IMAGE,
-            num_faces=1,  # Set maximum number of faces to detect
+            num_faces=1,
             min_face_detection_confidence=min_detection_confidence,
             min_face_presence_confidence=min_tracking_confidence,
         )
@@ -44,23 +33,20 @@ class FaceTracker:
 
         landmarks_list = result.face_landmarks
         h, w, c = frame.shape
-        face = landmarks_list[0]  # single face, since num_faces=1
-        #print(f"Face idx -- \n {face}")
+        face = landmarks_list[0]
         points = []
         for idx in self.face_indices:
             landmark = face[idx]
-            points.append((landmark.x * w, landmark.y * h))  # keep as float here, not int - solvePnP wants float32
+            points.append((landmark.x * w, landmark.y * h))  # stays float - solvePnP needs float32, not int
 
         x_max = 0
         y_max = 0
         x_min = w
         y_min = h
 
-        # landmarks_list contains an array of faces, where each face contains landmarks
         for face in landmarks_list:
             for landmark in face:
                 x, y = int(landmark.x * w), int(landmark.y * h)
-                #print(f"Landmark object - \n {landmark}")
                 if x > x_max:
                     x_max = x
                 if x < x_min:
@@ -69,7 +55,7 @@ class FaceTracker:
                     y_max = y
                 if y < y_min:
                     y_min = y
-                    
+
         return points,{
             "x_max": x_max,
             "y_max": y_max,
@@ -81,7 +67,7 @@ class FaceTracker:
 def main():
     cap = cv2.VideoCapture(0)
     facetracker = FaceTracker(0.3, 0.5)
-    
+
     while cap.isOpened():
         success, frame = cap.read()
         if not success:
@@ -97,11 +83,11 @@ def main():
                     (coordinates["x_min"], coordinates["y_min"]),
                     (coordinates["x_max"], coordinates["y_max"]),
                     (0, 255, 0), 2)
-                    
+
             cv2.imshow('MediaPipe Tasks Face Tracking', frame)
-        if cv2.waitKey(1) & 0xFF == 27:  # Press 'ESC' to exit
+        if cv2.waitKey(1) & 0xFF == 27:
                 break
-            
+
     cv2.destroyAllWindows()
     cap.release()
 

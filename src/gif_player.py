@@ -2,15 +2,11 @@ import time
 
 import cv2
 
-DEFAULT_FPS = 30.0  # fallback if the video file doesn't report a valid FPS
+DEFAULT_FPS = 30.0
 
 
 class GifPlayer:
-    """Loads a short video clip's frames up front, then hands back whichever
-    frame should be showing right now based on elapsed wall-clock time - so
-    playback speed matches the clip's real FPS regardless of your main loop's
-    frame rate. Despite the name, this reads any format cv2.VideoCapture can
-    open (mp4, mov, avi, gif, ...) - "gif" here just means "the nag clip"."""
+    # loads all frames up front, then picks the right one by elapsed wall-clock time - keeps playback speed correct regardless of the caller's loop rate
 
     def __init__(self, video_path):
         cap = cv2.VideoCapture(video_path)
@@ -37,12 +33,9 @@ class GifPlayer:
         self._start_time = None
 
     def reset(self):
-        """Call this when the clip is not being shown, so it restarts from
-        frame 0 next time instead of resuming mid-cycle."""
         self._start_time = None
 
     def next_frame(self):
-        """Returns the BGR frame (numpy array) that should be displayed right now."""
         if self._start_time is None:
             self._start_time = time.time()
 
@@ -53,7 +46,7 @@ class GifPlayer:
 
 
 def main():
-    """Smoke test - loops the clip in a window until ESC is pressed."""
+    # smoke test - loops the clip in a window until ESC is pressed
     import sys
 
     if len(sys.argv) < 2:

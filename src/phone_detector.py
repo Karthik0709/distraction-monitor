@@ -6,24 +6,18 @@ from ultralytics import YOLO
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", force=True)
 logger = logging.getLogger(__name__)
 
-# This file lives at <repo_root>/src/phone_detector.py, so the repo root is one level up.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Default: stock YOLOv8n COCO weights (has a "cell phone" class out of the box,
-# downloads automatically on first run) - no training required to try this out.
-# After fine-tuning via train_phone_yolo.py, point this at
-# runs/detect/phone_detector/weights/best.pt instead.
+# stock YOLOv8n COCO weights, has a "cell phone" class out of the box - swap for
+# runs/detect/phone_detector/weights/best.pt after fine-tuning via train_phone_yolo.py
 MODEL_PATH = str(PROJECT_ROOT / "model" / "yolov8n.pt")
 
-TARGET_LABEL_SUBSTRING = "phone"  # matches both COCO's "cell phone" and the
-                                   # fine-tuned model's single "phone" class
+TARGET_LABEL_SUBSTRING = "phone"  # matches both COCO's "cell phone" and the fine-tuned model's "phone" class
 CONFIDENCE_THRESHOLD = 0.3
 
 
 class PhoneDetector:
-    """Runs a YOLOv8 model on a frame and reports the highest-confidence
-    'phone' detection, if any. Same detect() interface as the earlier
-    mediapipe-backed version, so monitor.py doesn't need to change."""
+    # same detect() interface as the earlier mediapipe-backed version, so monitor.py didn't need to change
 
     def __init__(self, model_path=MODEL_PATH, confidence_threshold=CONFIDENCE_THRESHOLD,
                  target_label_substring=TARGET_LABEL_SUBSTRING):
@@ -32,10 +26,7 @@ class PhoneDetector:
         self.target_label_substring = target_label_substring.lower()
 
     def detect(self, frame_bgr):
-        """Returns (box, score) for the best phone detection, or None.
-        box is (x_min, y_min, x_max, y_max) in pixel coordinates.
-        ultralytics accepts a raw BGR numpy array directly - no manual
-        color conversion needed, unlike the mediapipe Tasks API."""
+        # returns (box, score) for the best phone detection, or None - box is (x_min, y_min, x_max, y_max) in pixels
         results = self.model.predict(frame_bgr, conf=self.confidence_threshold, verbose=False)
 
         best = None
@@ -56,7 +47,7 @@ class PhoneDetector:
 
 
 def main():
-    """Smoke test - hold a phone up to the webcam. ESC to quit."""
+    # smoke test - hold a phone up to the webcam, ESC to quit
     import cv2
 
     cap = cv2.VideoCapture(0)

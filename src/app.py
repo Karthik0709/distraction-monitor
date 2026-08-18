@@ -19,14 +19,10 @@ from phone_detector import PhoneDetector
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", force=True)
 logger = logging.getLogger(__name__)
 
-# This file lives at <repo_root>/src/app.py, so the repo root is one level up.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 GIF_PATH = str(PROJECT_ROOT / "assets" / "Dei_parama_padi_da_Tamil_meme_templates.mp4")
 
-# Debounce: phone reacts fast (a handful of frames), face-away is slower/more
-# forgiving since head pose is noisier. Matches the reviewed change to
-# monitor.py - kept in sync here rather than importing monitor.py's module-
-# level constants, since this file owns its own session loop.
+# phone reacts fast, face-away is slower and more forgiving since head pose is noisier
 PHONE_ENTER_FRAMES = 8
 FACE_ENTER_FRAMES = 120
 EXIT_DISTRACTION_FRAMES = 15
@@ -67,19 +63,16 @@ class SessionStats:
 
 
 class DistractionEngine:
-    """Owns the camera, detectors, and per-frame distraction logic - no
-    Tkinter dependency. Runs its own capture loop on a background thread and
-    exposes only get_latest_frame() (thread-safe) for the UI to poll from
-    the main thread via `after()`. Never touch Tkinter widgets from inside
-    this class - only the App class is allowed to do that."""
+    # Runs the camera + detection loop on a background thread; the UI polls get_latest_frame() instead of touching this class's internals directly.
 
-    def __init__(self, on_calibration_status=None):
+    def __init__(self, on_calibration_status=None, monitor_mode="single"):
         self.stats = SessionStats()
         self._stop_event = threading.Event()
         self._latest_frame_rgb = None
         self._frame_lock = threading.Lock()
         self._thread = None
         self._on_calibration_status = on_calibration_status or (lambda msg: None)
+        self.monitor_mode = monitor_mode  # "single" = old fixed-threshold calibration, "multi" = per-monitor range calibration
 
     def start(self):
         self.stats = SessionStats(start_time=time.time())
@@ -103,9 +96,7 @@ class DistractionEngine:
             self._latest_frame_rgb = rgb
 
     def _run(self):
-        # Opening the camera is what actually triggers the OS permission
-        # prompt - deliberately done here, inside the worker thread spawned
-        # by the Start Session button, not at import time or app startup.
+        # camera only opens here, inside the Start Session click's worker thread, so the OS permission prompt fires on demand
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             logger.error("Could not open camera.")
@@ -118,9 +109,12 @@ class DistractionEngine:
         gif_player = GifPlayer(GIF_PATH)
         audio_player = AudioLoopPlayer(GIF_PATH)
 
-        self._on_calibration_status("Calibrating - look at the screen normally...")
-        pose_estimator.calibrate_neutral(face_tracker, cap)
-        self._on_calibration_status(None)
+        if self.monitor_mode == "multi":
+            pose_estimator.calibrate_range(face_tracker, cap, on_status=self._on_calibration_status)
+        else:
+            self._on_calibration_status("Calibrating - look at the screen normally...")
+            pose_estimator.calibrate_neutral(face_tracker, cap)
+            self._on_calibration_status(None)
 
         distracted_streak = 0
         clear_streak = 0
@@ -193,9 +187,7 @@ class DistractionEngine:
 
     @staticmethod
     def _composite_alert(frame, gif_frame):
-        """Darkens the webcam frame and pastes the nag clip centered on top,
-        with a red border and banner text - a picture-in-picture alert look,
-        composited into a single frame so the UI only ever displays one image."""
+        # darkens the feed and pastes the nag clip on top as a bordered picture-in-picture alert
         h, w = frame.shape[:2]
         darkened = (frame.astype(np.float32) * 0.35).astype(np.uint8)
 
@@ -237,8 +229,9 @@ class App(tk.Tk):
         self.configure(bg="#111111")
 
         self.engine = None
-        self._video_photo = None  # keep a reference - Tkinter drops PhotoImages with no live reference
+        self._video_photo = None  # Tkinter drops images with no live reference, so this has to stick around
         self._update_job = None
+        self.monitor_mode_var = tk.StringVar(value="single")
 
         self._build_ui()
         self._show_start_screen()
@@ -254,6 +247,14 @@ class App(tk.Tk):
         self.status_label = tk.Label(self.top_bar, text="", font=("Segoe UI", 11),
                                       fg="#aaaaaa", bg="#1c1c1c")
         self.status_label.pack(side="left", padx=10)
+
+        self.monitor_mode_frame = tk.Frame(self.top_bar, bg="#1c1c1c")
+        tk.Radiobutton(self.monitor_mode_frame, text="Single monitor", variable=self.monitor_mode_var,
+                       value="single", bg="#1c1c1c", fg="white", selectcolor="#1c1c1c",
+                       activebackground="#1c1c1c", activeforeground="white").pack(side="left", padx=5)
+        tk.Radiobutton(self.monitor_mode_frame, text="Multi monitor", variable=self.monitor_mode_var,
+                       value="multi", bg="#1c1c1c", fg="white", selectcolor="#1c1c1c",
+                       activebackground="#1c1c1c", activeforeground="white").pack(side="left", padx=5)
 
         self.start_button = ttk.Button(self.top_bar, text="Start Session", command=self._on_start_clicked)
         self.stop_button = ttk.Button(self.top_bar, text="Stop Session", command=self._on_stop_clicked)
@@ -276,20 +277,22 @@ class App(tk.Tk):
         self.video_label.pack(side="top", fill="both", expand=True)
         self.stop_button.pack_forget()
         self.start_button.pack(side="right", padx=20, pady=10)
+        self.monitor_mode_frame.pack(side="right", padx=10)
         self.timer_label.configure(text="00:00")
         self.status_label.configure(text="")
 
     def _on_start_clicked(self):
         self.start_button.pack_forget()
+        self.monitor_mode_frame.pack_forget()
         self.status_label.configure(text="Requesting camera access...")
-        self.engine = DistractionEngine(on_calibration_status=self._on_calibration_status)
+        self.engine = DistractionEngine(on_calibration_status=self._on_calibration_status,
+                                         monitor_mode=self.monitor_mode_var.get())
         self.engine.start()
         self.stop_button.pack(side="right", padx=20, pady=10)
         self._update_frame_loop()
 
     def _on_calibration_status(self, message):
-        # Called from the worker thread - route through `after()` so the
-        # actual widget update always happens on the main thread.
+        # this runs on the worker thread, so hop back to the main thread before touching any widget
         self.after(0, lambda: self.status_label.configure(text=message or ""))
 
     def _on_stop_clicked(self):

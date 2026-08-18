@@ -12,14 +12,10 @@ from phone_detector import PhoneDetector
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", force=True)
 logger = logging.getLogger(__name__)
 
-# This file lives at <repo_root>/src/monitor.py, so the repo root is one level up.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Drop this file in yourself - any gif works. Point this at it.
 GIF_PATH = str(PROJECT_ROOT / "assets" / "Dei_parama_padi_da_Tamil_meme_templates.mp4")
-# Debounce: require N consecutive frames before flipping state, so a single
-# flickery misdetection doesn't start/stop the gif. Exit threshold is higher
-# than enter - easier to trigger the nag, harder to dismiss it by accident.
+# debounce: N consecutive frames before flipping state, so one flickery misdetection can't start/stop the nag
 ENTER_DISTRACTION_FRAMES = 180
 EXIT_DISTRACTION_FRAMES = 15
 
@@ -38,8 +34,12 @@ def main():
     gif_player = GifPlayer(GIF_PATH)
     audio_player = AudioLoopPlayer(GIF_PATH)
 
-    logger.info("Calibrating neutral head pose - look at the screen normally...")
-    pose_estimator.calibrate_neutral(face_tracker, cap)
+    monitor_mode = input("Single or multi monitor setup? [s/m, default s]: ").strip().lower()
+    if monitor_mode == "m":
+        pose_estimator.calibrate_range(face_tracker, cap, on_status=lambda msg: logger.info(msg) if msg else None)
+    else:
+        logger.info("Calibrating neutral head pose - look at the screen normally...")
+        pose_estimator.calibrate_neutral(face_tracker, cap)
     logger.info("Calibration done. Monitoring started. ESC to quit.")
 
     distracted_streak = 0

@@ -10,15 +10,7 @@ IS_WINDOWS = sys.platform == "win32"
 
 
 class AudioLoopPlayer:
-    """cv2 has no audio support at all - VideoCapture only ever decodes
-    frames. This extracts the source clip's audio track once (cached next to
-    the source file as a .wav) and loops it via the stdlib `winsound` module -
-    no extra dependency, no compiled package, just ships with Python on
-    Windows. Call start()/stop() whenever the video loop starts/stops -
-    they're idempotent, safe to call every frame.
-
-    winsound is Windows-only. On other platforms this degrades to silent
-    (logged once) rather than crashing the monitor."""
+    # cv2 can't play audio at all, so this extracts the clip's audio once and loops it separately via winsound
 
     def __init__(self, video_path):
         self.audio_path = self._extract_audio(video_path)
@@ -74,7 +66,7 @@ class AudioLoopPlayer:
 
 
 def main():
-    """Smoke test - loops the clip's audio until Enter is pressed."""
+    # smoke test - loops the clip's audio until Enter is pressed
     if len(sys.argv) < 2:
         print("Usage: python audio_player.py <path_to_video>")
         return
