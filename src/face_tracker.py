@@ -1,5 +1,11 @@
+from pathlib import Path
+
 import cv2
 import mediapipe as mp
+
+# This file lives at <repo_root>/src/face_tracker.py, so the repo root is one level up.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FACE_LANDMARKER_MODEL_PATH = PROJECT_ROOT / "model" / "face_landmarker_v2.task"
 
 
 class FaceTracker:
@@ -17,7 +23,7 @@ class FaceTracker:
 
     def __init__(self, min_detection_confidence: float, min_tracking_confidence: float):
         self.face_indices = [1,152,33,263,61,291]
-        self.model_path = "C:\\Users\\Jayakumar\\Downloads\\Karthik_Projects\\distraction-monitor\\model\\face_landmarker_v2.task"
+        self.model_path = str(FACE_LANDMARKER_MODEL_PATH)
 
         options = mp.tasks.vision.FaceLandmarkerOptions(
             base_options=mp.tasks.BaseOptions(model_asset_path=self.model_path),

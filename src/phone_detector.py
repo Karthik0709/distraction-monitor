@@ -1,15 +1,19 @@
 import logging
+from pathlib import Path
 
 from ultralytics import YOLO
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", force=True)
 logger = logging.getLogger(__name__)
 
+# This file lives at <repo_root>/src/phone_detector.py, so the repo root is one level up.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 # Default: stock YOLOv8n COCO weights (has a "cell phone" class out of the box,
 # downloads automatically on first run) - no training required to try this out.
 # After fine-tuning via train_phone_yolo.py, point this at
 # runs/detect/phone_detector/weights/best.pt instead.
-MODEL_PATH = "C:\\Users\\Jayakumar\\Downloads\\Karthik_Projects\\distraction-monitor\\model\\yolov8n.pt"
+MODEL_PATH = str(PROJECT_ROOT / "model" / "yolov8n.pt")
 
 TARGET_LABEL_SUBSTRING = "phone"  # matches both COCO's "cell phone" and the
                                    # fine-tuned model's single "phone" class

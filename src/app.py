@@ -3,6 +3,7 @@ import threading
 import time
 import tkinter as tk
 from dataclasses import dataclass, field
+from pathlib import Path
 from tkinter import ttk
 
 import cv2
@@ -18,7 +19,9 @@ from phone_detector import PhoneDetector
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", force=True)
 logger = logging.getLogger(__name__)
 
-GIF_PATH = "C:\\Users\\Jayakumar\\Downloads\\Karthik_Projects\\distraction-monitor\\assets\\Dei_parama_padi_da_Tamil_meme_templates.mp4"
+# This file lives at <repo_root>/src/app.py, so the repo root is one level up.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+GIF_PATH = str(PROJECT_ROOT / "assets" / "Dei_parama_padi_da_Tamil_meme_templates.mp4")
 
 # Debounce: phone reacts fast (a handful of frames), face-away is slower/more
 # forgiving since head pose is noisier. Matches the reviewed change to
