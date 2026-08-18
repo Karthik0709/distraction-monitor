@@ -71,8 +71,8 @@ The bundled YOLOv8n weights are pretrained on COCO and already recognize phones 
 improve accuracy for your own camera/lighting/angle:
 
 1. Label a dataset (CSV with `filename,width,height,xmin,ymin,xmax,ymax,class` columns, uncropped images).
-2. `python src/convert_csv_to_yolo.py` to convert it into YOLO training format.
-3. `python src/train_phone_yolo.py` to fine-tune (works well on a free Colab GPU runtime).
+2. Run `python src/convert_csv_to_yolo.py` to convert it into YOLO training format.
+3. Run `python model/train/distraction_monitor.ipynb` to fine-tune (works well on a free Colab GPU runtime).
 4. Point `phone_detector.py`'s `MODEL_PATH` at the resulting weights.
 
 ## Design notes worth knowing
