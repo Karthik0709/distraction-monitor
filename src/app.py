@@ -284,6 +284,7 @@ class App(tk.Tk):
     def _on_start_clicked(self):
         self.start_button.pack_forget()
         self.monitor_mode_frame.pack_forget()
+        self.video_label.configure(image="", text="Starting camera...")  # clear the stale "Click Start Session" placeholder
         self.status_label.configure(text="Requesting camera access...")
         self.engine = DistractionEngine(on_calibration_status=self._on_calibration_status,
                                          monitor_mode=self.monitor_mode_var.get())
@@ -293,7 +294,13 @@ class App(tk.Tk):
 
     def _on_calibration_status(self, message):
         # this runs on the worker thread, so hop back to the main thread before touching any widget
-        self.after(0, lambda: self.status_label.configure(text=message or ""))
+        def update():
+            self.status_label.configure(text=message or "")
+            # no camera frames are pushed until calibration finishes, so mirror the instructions
+            # in the main feed area too instead of leaving the old placeholder/blank label showing
+            if message:
+                self.video_label.configure(image="", text=message)
+        self.after(0, update)
 
     def _on_stop_clicked(self):
         self.stop_button.configure(state="disabled")
@@ -308,14 +315,18 @@ class App(tk.Tk):
         if self.engine is None:
             return
 
-        frame_rgb = self.engine.get_latest_frame()
-        if frame_rgb is not None:
-            widget_w = max(self.video_label.winfo_width(), 640)
-            widget_h = max(self.video_label.winfo_height(), 480)
-            image = Image.fromarray(frame_rgb)
-            image = self._fit_image(image, widget_w, widget_h)
-            self._video_photo = ImageTk.PhotoImage(image=image)
-            self.video_label.configure(image=self._video_photo, text="")
+        # skip the decode/resize/PhotoImage churn while minimized - it's wasted work on a hidden
+        # widget, and leaving it running was piling up enough main-thread work that the Stop button
+        # click could sit stuck behind the backlog after restoring the window
+        if self.state() != "iconic":
+            frame_rgb = self.engine.get_latest_frame()
+            if frame_rgb is not None:
+                widget_w = max(self.video_label.winfo_width(), 640)
+                widget_h = max(self.video_label.winfo_height(), 480)
+                image = Image.fromarray(frame_rgb)
+                image = self._fit_image(image, widget_w, widget_h)
+                self._video_photo = ImageTk.PhotoImage(image=image)
+                self.video_label.configure(image=self._video_photo, text="")
 
         elapsed = time.time() - self.engine.stats.start_time
         self.timer_label.configure(text=self._format_duration(elapsed))
